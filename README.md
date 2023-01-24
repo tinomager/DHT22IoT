@@ -1,1 +1,1 @@
-# DHT22IoT
+# Home Azure IoT platform
