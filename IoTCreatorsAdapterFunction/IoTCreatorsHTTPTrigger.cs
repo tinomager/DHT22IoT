@@ -30,13 +30,13 @@ namespace TinoMager.IoTCreatorsConnectorFunction
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-            log.LogInformation($"IoTCreatorsHTTPTrigger function processed a request with body: {req.Body}");
-
             string requestBody = String.Empty;
             using (StreamReader streamReader =  new  StreamReader(req.Body))
             {
                 requestBody = await streamReader.ReadToEndAsync();
             }
+            log.LogInformation($"IoTCreatorsHTTPTrigger function processed a request with body: {requestBody}");
+
             var data = JsonConvert.DeserializeObject<IoTCreatorsDTO>(requestBody);
 
             String responseMessage = String.Empty;
@@ -54,14 +54,24 @@ namespace TinoMager.IoTCreatorsConnectorFunction
                 }
                 else{
                     foreach(var res in data.Reports){
-                        //TODO: Do IoT Hub Magic here
                         var stringValue = ConvertHexToString(res.Value);
                         var jsonValue = JsonConvert.DeserializeObject<TempHumMeasurementDTO>(stringValue);
-                        responseMessage += $"Device Id {res.SerialNumber} message value {stringValue}; ";
+                        var messageJson = new TempHumImeiMeasurementDTO();
+                        messageJson.Temperature = jsonValue.Temperature;
+                        messageJson.Humidity = jsonValue.Humidity;
+                        if(res.SerialNumber.Contains(':')){
+                            messageJson.Imei = res.SerialNumber.Split(':')[1];
+                        }
+                        else{
+                            messageJson.Imei = res.SerialNumber;
+                        }
+                        var messageStringValue = JsonConvert.SerializeObject(messageJson);
 
-                        var message = new Message(Encoding.ASCII.GetBytes(stringValue));
+                        responseMessage += $"Device Id {res.SerialNumber} message value {messageStringValue}; ";
+
+                        var message = new Message(Encoding.ASCII.GetBytes(messageStringValue));
                         deviceClient.SendEventAsync(message).Wait();
-                        log.LogInformation($"Successfully sent {stringValue} to IoT Hub");
+                        log.LogInformation($"Successfully sent {messageStringValue} to IoT Hub");
                     }
                 }
             }
@@ -69,5 +79,6 @@ namespace TinoMager.IoTCreatorsConnectorFunction
             log.LogInformation($"Response message: {responseMessage}");
             return new OkObjectResult(responseMessage);
         }
+        
     }
 }
