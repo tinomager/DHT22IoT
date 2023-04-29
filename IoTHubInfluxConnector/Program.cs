@@ -16,9 +16,14 @@ namespace IoTHubInfluxConnector
         private static string? StorageAccountKey = Environment.GetEnvironmentVariable("StorageAccountKey");  
         private static string? StorageContainerName = Environment.GetEnvironmentVariable("StorageAccountContainerName");  
         private static string? StorageAccountName = Environment.GetEnvironmentVariable("StorageAccountName");  
+
+
         static async Task Main(string[] args)  
         {  
             Console.WriteLine("Starting Event Processor Host...");  
+
+            var cts = new CancellationTokenSource();
+            var ct = cts.Token;
     
             var eventProcessorHost = new EventProcessorHost(  
                 EventHubName,  
@@ -30,7 +35,11 @@ namespace IoTHubInfluxConnector
             await eventProcessorHost.RegisterEventProcessorAsync<IoTHubInfluxConnector>();  
   
             Console.WriteLine("Event Processor Host started. Press any key to exit...");  
-            Console.ReadKey();  
+            while (!ct.IsCancellationRequested)  
+            {  
+                await Task.Delay(1000);  
+            }  
+            Console.WriteLine("Cancellation requested. Unregistering EventProcessor...");
   
             await eventProcessorHost.UnregisterEventProcessorAsync();  
         }  
